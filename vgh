@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+
+const { spawn } = require('child_process');
+const ls = spawn('/usr/bin/valgrind', [
+    '-s', '--leak-check=full', '--show-leak-kinds=all',
+    '--track-origins=yes', ...(process.argv.slice(2))
+]);
+
+let successtext = "All heap blocks were freed -- no leaks are possible"
+let DUMP_AT_END = true
+let dat = []
+
+ls.stdout.on('data', (data) => {
+  process.stdout.write(data)
+});
+
+ls.stderr.on('data', (data) => {
+ if((data + "").startsWith("==") || (data + "").startsWith("valgrind:")) {
+
+    dat.push(data);
+    
+    if(data.includes(successtext))
+        DUMP_AT_END = false;
+ } else process.stderr.write(data); 
+});
+
+ls.on('close', (code) => {
+  if(DUMP_AT_END) process.stderr.write(dat.join('\n'))
+  process.exit(code);
+});
